@@ -1,0 +1,5 @@
+CapellaUI/screenshots
+*.png
+CapellaUI/test-output
+.metadata
+CapellaUI/resources/TestData.xlsx
