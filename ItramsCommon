@@ -1,0 +1,296 @@
+package test.itrams.common;
+
+import java.awt.AWTException;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+
+import org.openqa.selenium.JavascriptExecutor;
+import org.testng.annotations.Test;
+
+import clear.driver.TestDriver;
+
+
+public class ItramsCommon extends TestDriver {
+ 
+
+		
+	
+	 private String browser;
+	 private String userName;
+	 private String accountId = "21259";
+	 
+	 /**
+		 * Getter for account id for which desktop is launched 
+		 * @param criteria
+		 * @return
+		 * @throws Exception
+		 * @author ptt4kor
+		 */
+		
+		public String getAccountId(){
+			return accountId;
+		}
+		
+	
+		
+		/**
+		 * This method is to select search type in quick search 
+		 * @param  
+		 * @return 
+		 * @throws  
+		 * @author rae4kor
+		 */
+		public String quickSearch(String QSType) {		        
+		    
+				if (QSType.equals("LN")){
+		    		selectUsingId(getLocator("orHomePg.DD_ID_SEARCH_TYPE"), "Last Name (Default)");
+		    		return QSType;
+		    	   	}
+		    	else if (QSType.equals("SN")){
+		        	selectUsingId(getLocator("orHomePg.DD_ID_SEARCH_TYPE"), "Serial Number");
+		        	return QSType;
+		           	}
+		    	else if (QSType.equals("SSN")){
+		    		selectUsingId(getLocator("orHomePg.DD_ID_SEARCH_TYPE"), "SSN");
+		    		return QSType;
+		    	   	}
+		    	else if (QSType.equals("WPID")){
+		        	selectUsingId(getLocator("orHomePg.DD_ID_SEARCH_TYPE"), "WPID");
+		        	return QSType;
+		          	}
+		    	else{
+		    		ReportLog(QSType+ " is an invalid Quick Search Type", LogType.SOFTFAIL);
+		    		QSType = "INVALID";
+		    		return QSType;
+		    		}
+		}		
+	 /**
+	 * This method is to login into HBCM application 
+	 * @param  
+	 * @return
+	 * @throws 
+	 * @throws  
+	 * @author ptt4kor
+	 */
+	 
+	 
+	public void login() throws InterruptedException {
+	 
+		browser = getConfigVal("BROWSER");
+		//dr.manage().window().maximize();
+		dr.get(getConfigVal("APP_URL"));
+				
+		ReportLog("Launching the browser..", LogType.PASS);
+		ReportLog("Browser to be used: ".concat(browser)   , LogType.INFO);
+		ReportLog("URL: " + getConfigVal("APP_URL"), LogType.INFO);
+		
+		//wait for first page to load
+		waitForPageLoad();
+		//Step 1: Enter user name, password and submit
+		typeTextUsingId(getLocator("orLoginPg.TXTBX_ID_USRNM"), getConfigVal("USER_NAME"));
+		//typeTextUsingId(getLocator("orLoginPg.TXTBX_ID_USRNM"), inputData.get("LOGIN_USER_NAME"));
+		typeTextUsingId(getLocator("orLoginPg.TXTBX_ID_PSWRD"), getConfigVal("PASSWORD"));
+		clickElementUsingXpath(getLocator("orLoginPg.BTN_XPATH_LOGIN"));
+		waitForPageLoad();
+		
+		/*userName =  getInnerTextUsingXpath(getLocator("orLoginPg.USER_NAME"));
+		
+		if(!(userName == null) || !userName.isEmpty()){
+			ReportLog("Login success [User: "+ userName +"]", LogType.PASS);
+		} 
+		else{
+			ReportLog("Unable to login to the application..", LogType.HARDFAIL);
+		}
+		*/
+}
+	
+	public void changePreference() {
+		// click on Preference
+		clickElementUsingXpath(getLocator("orWorklistTab.LNK_XP_PREFERENCES"));
+
+		wait(10);
+
+		// click Customer Service as Preference
+		((JavascriptExecutor) dr)
+				.executeScript("document.getElementById('cm12542').click();");
+		((JavascriptExecutor) dr)
+				.executeScript("document.getElementById('cm18590').click();");
+		((JavascriptExecutor) dr)
+				.executeScript("document.getElementById('save-button').click();");
+
+		wait(10);
+	}
+	
+	 /**
+		 * This method is to logout from HBCM application 
+		 * @param  
+		 * @return
+		 * @throws  
+		 * @author ptt4kor
+		 */
+	public void logout() {
+		
+		clickElementUsingXpath(getLocator("orLoginPg.USER"));
+		wait(2);
+		clickElementUsingXpath(getLocator("orLoginPg.LOGOUT"));
+		
+	}
+	
+	/* 
+	 * Formats patient's name as displayed on PAT header
+	* @param fn: first name
+	* 		 ln: last name
+	* 		 mn: middle name
+	* 		 ssn: SSN
+	* @return formatted name
+	* @throws Exception
+	* @author ptt4kor 
+	*/
+	public String formatName(String fn, String ln, String mn, String ssn) {
+		String result = "";
+		
+		if (!ln.trim().isEmpty()) {
+			result =ln;
+		}
+		if (!fn.trim().isEmpty()) {
+			result += !result.trim().equals("") ? ", "
+					+ fn : fn;
+		}
+		
+		if (!mn.trim().isEmpty()) {
+			result += !result.trim().equals("") ? ", " + mn : mn;
+		}
+		
+		ssn = ssn.substring(ssn.length()-4);
+		
+		if (!ssn.trim().isEmpty()) {
+			result += " (" + ssn + ")";
+		}
+
+		return result;	
+		
+	}
+
+	/**
+	 * Method to get PAT ID from DB given SSN and account number
+	 * @param 
+	 * @return
+	 * @throws Exception
+	 * @author ptt4kor
+	 */
+	public String getPATId(String AccountNum, String ssn){
+		//remove the - as in DB
+		ssn = ssn.replaceAll("-", "");
+		
+		String query = "Select P1.PAT_ID" +
+						" from HHERO.PAT P1"+
+						" LEFT JOIN HHERO.PAT_DMGRPHCS P2"+
+						" ON(P1.PAT_ID = P2.PAT_ID)"+
+						" WHERE  P1.ACNT_ID = '" + AccountNum +
+						"' AND P2.SSN = '" + ssn + "' AND P1.PAT_ID != '33990'";
+		 List<HashMap<String,String>> queryResult = db.getQueryResult(query);
+	    
+		 //get the first row
+	     HashMap<String,String> db = queryResult.get(0);
+	     
+	     ReportLog("Patient Id fetched from DB: " + db.get("PAT_ID") , LogType.INFO);
+		
+	     return db.get("PAT_ID");
+		
+	}
+
+	public int getAge(Date dateOfBirth) {
+
+	    Calendar today = Calendar.getInstance();
+	    Calendar birthDate = Calendar.getInstance();
+
+	    int age = 0;
+
+	    birthDate.setTime(dateOfBirth);
+	    if (birthDate.after(today)) {
+	        throw new IllegalArgumentException("Can't be born in the future");
+	    }
+
+	    age = today.get(Calendar.YEAR) - birthDate.get(Calendar.YEAR);
+
+	    // If birth date is greater than todays date (after 2 days adjustment of leap year) then decrement age one year   
+	    if ( (birthDate.get(Calendar.DAY_OF_YEAR) - today.get(Calendar.DAY_OF_YEAR) > 3) ||
+	            (birthDate.get(Calendar.MONTH) > today.get(Calendar.MONTH ))){
+	        age--;
+
+	     // If birth date and todays date are of same month and birth day of month is greater than todays day of month then decrement age
+	    }else if ((birthDate.get(Calendar.MONTH) == today.get(Calendar.MONTH )) &&
+	              (birthDate.get(Calendar.DAY_OF_MONTH) > today.get(Calendar.DAY_OF_MONTH ))){
+	        age--;
+	    }
+
+	    return age;
+	}
+
+	/* 
+	 * Formats phone number
+	* @param  phone: Phone Number
+	* @return formatted phone
+	* @throws Exception
+	* @author ptt4kor
+	*/
+	public String formatHomePhone(String phone) {
+		String result = "";
+		
+			if (phone != null){
+				String s ="";
+				//removing special chars
+				for (int i = 0; i < phone.length(); i++) {
+					if (Character.isDigit(phone.charAt(i))){
+						s += phone.charAt(i);
+					}
+				}
+				if (s.length()>6)
+					result = "("+s.substring(0, 3)+")"+s.substring(3, 6)+"-"+s.substring(6);
+				else
+					result= phone;
+			}
+			return result;
+	}
+
+	/* 
+	 * Formats address
+	* @param  
+	* @return formatted address
+	* @throws Exception
+	* @author ptt4kor
+	*/
+	public String formatAddress(String adr1, String adr2, String city, String state, String cc,String zip) {
+				
+		adr1 = adr1.trim().isEmpty()?"":adr1 +", ";
+		adr2 = adr2.trim().isEmpty()?"":adr2 +", ";
+		city = city.trim().isEmpty()?"":city +", ";
+		state = state.trim().isEmpty()?"":state +", ";
+		cc = cc.trim().isEmpty()?"":cc+", ";
+		zip = zip.trim().isEmpty()?"":zip;
+		
+		String address = adr1 + adr2 + city + state + cc + zip;
+		address = address.trim();
+		
+	  if (address.length() > 0 && address.charAt(address.length()-1)==',') 
+	  		{
+				  address = address.substring(0, address.length()-1);
+			}
+			  return address;
+			
+				
+		
+	}
+
+
+
+	
+	
+
+}
+
+
+
+
