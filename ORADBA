@@ -1,0 +1,146 @@
+package clear.utils;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Properties;
+
+import clear.driver.TestDriver;
+import clear.driver.TestDriver.LogType;
+
+
+
+public class OraDBData  {
+	
+	 private static Connection connection = null;
+	 static Properties dbConnProp = null;
+	 
+	 /**
+		 * This method is to set the connection  
+		 * @param uri, user id, password
+		 * @return
+		 * @throws 
+		 * @author ptt4kor
+		 */
+	 private static void connect(String uri, String userid, String password)
+	    {
+		 try {
+			 //connect if not already connected
+			if(connection == null)	{
+				Class.forName("oracle.jdbc.driver.OracleDriver"); //Or any other driver
+				connection = DriverManager.getConnection(uri, userid, password);
+				TestDriver.ReportLog("Oracle connection successful", LogType.PASS);
+				TestDriver.ReportLog("Connection url:"+ uri, LogType.INFO);
+				TestDriver.ReportLog("User id: "+ userid + " Password: "+ password, LogType.INFO);
+			}
+			}
+			catch(SQLException e ){
+				e.printStackTrace();
+				System.out.println( "Couldn’t get the connection!" );
+				
+				TestDriver.ReportLog("Unable to connect to DB."+ e.getMessage(), LogType.UNCOMPLETED);
+				TestDriver.ReportLog("SQL Exception occured", LogType.TEXTLOGONLY);
+			} 
+		 
+		 catch(Exception ex ){
+				ex.printStackTrace();
+				System.out.println( "Couldn’t get the connection!" + ex.getMessage() );
+				TestDriver.ReportLog(" Exception occured" + ex.getMessage() , LogType.TEXTLOGONLY);
+				TestDriver.ReportLog("Unable to connect to DB." + ex.getMessage(), LogType.UNCOMPLETED);
+			} 
+		
+		
+	    }
+	 
+	 /**
+		 * This method is to clean up the connection
+		 * @param criteria
+		 * @return
+		 * @throws 
+		 * @author ptt4kor
+		 */
+	 public static void oraConnCleanUp(){
+		 if (connection != null){
+	            try
+	            {
+	            	//dbConnProp.clear();
+	            	connection.close();
+	            	connection = null;
+	            	
+	            }
+	            catch (SQLException e1)
+	            {
+	                e1.printStackTrace();
+	            }
+		 }
+	 }
+	 
+	 
+	 
+	 /**
+		 * This method is to fetch query result in a list of hash map 
+		 * @param criteria
+		 * @return
+		 * @throws 
+		 * @author ptt4kor
+		 */
+	 
+	  public  List<HashMap<String,String>> getQueryResult(String sql){
+		 List<HashMap<String,String>> resultSet = new ArrayList<HashMap<String,String>>();
+			 
+			PreparedStatement ps = null;
+			ResultSet rs = null;
+			ResultSetMetaData rsmd = null;
+			HashMap<String,String> map = null;
+			String dbUri, uid, pw = null;
+			TestDriver.ReportLog("Query: " + sql , LogType.TEXTLOGONLY);
+		 
+		 try{
+			 	dbUri = TestDriver.getConfigVal("DB_URI");
+			 	uid = TestDriver.getConfigVal("DB_USER");
+			 	pw = TestDriver.getConfigVal("DB_PASSWORD");
+			 	
+			 	connect(dbUri,uid,pw);
+			
+			 	ps = connection.prepareStatement(sql);
+				//ps.setLong(1,accEntId);
+				rs = ps.executeQuery();
+				rsmd = rs.getMetaData();
+				while (rs.next())
+				{
+					map = new HashMap<String,String>();
+					// The column count starts from 1
+					for (int i = 1; i<rsmd.getColumnCount() + 1; i++ ) {
+					  String key = rsmd.getColumnName(i);
+					  String value = rs.getString(key);
+					  //if value is null, convert to empty string
+					  value = value==null?"":value;
+					  
+					  //put the column name as key and value in map
+					  map.put(key, value);
+					}
+					resultSet.add(map);
+				}
+				
+				TestDriver.ReportLog(resultSet.size() + " record(s) fetched from DB", LogType.PASS);
+				
+		 }
+		 catch(Exception e){
+			 TestDriver.ReportLog("Unable to execute the query", LogType.UNCOMPLETED);
+			
+		 }
+		 finally{
+			//close the connection
+				oraConnCleanUp();
+		 }
+		 
+		 
+		 return resultSet;
+	 } 
+}
