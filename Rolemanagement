@@ -1,0 +1,380 @@
+package test.itrams.testscript;
+
+import java.awt.AWTException;
+import java.util.HashMap;
+
+import org.openqa.selenium.By;
+import org.testng.annotations.Test;
+
+import clear.driver.TestDriver;
+import test.itrams.common.ItramsCommon;
+import test.itrams.common.SystemAdmin;
+
+public class Role_Management extends TestDriver{
+	   	
+	ItramsCommon common=new ItramsCommon();
+	
+ //Creating Customer Admin Role
+	
+	@Test(dataProvider = "InputDataSupplier", description = "Verify Creation of Customer Admin Role")
+	public void Create_CustomerAdmin_Role(HashMap<String, String> inputData) throws AWTException, Exception {
+						
+	  //Login
+		
+		common.login();
+		
+	  //Click on Admin tab
+
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADMIN_TAB"));
+		wait(2);
+		
+			
+     	//Click on Role Management menu
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_RoleManagement"));
+		wait(2);
+		
+		//Click on Add Role Icon
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADD_ROLE"));
+		wait(2);
+		
+		
+		//Enter Role Name
+		
+		typeTextUsingId(getLocator("orRoleManagement.ID_ROLENAME"), inputData.get("ROLE_NAME"));
+		
+	//Select Customer
+		
+		TypeTextandEnterUsingId(getLocator("orRoleManagement.ID_CUSTOMER"), inputData.get("CUSTOMER"));
+		wait(2);	
+		
+		//Select Role Type
+		
+		typeTextUsingXpath(getLocator("orRoleManagement.XPATH_ROLETYPE"), inputData.get("ROLE_TYPE"));		
+		wait(3);
+	 
+	   // Selecting the Features
+		
+		//Live Tracking
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_LIVE_TRACKING"));
+		
+		// variant Registration
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_VARIANT_REGISTRATION"));
+		
+		// Favorite Vehicle
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_FAVOURITE_VEHICLE"));
+		
+		//User Management
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_USER_MANAGEMENT"));
+		
+		//Vehicle Management
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_VEHICLE_MANAGEMENT"));
+		
+		//Data Log
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_DATA_LOG"));
+		
+		// user Profiling
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_USER_PROFILE"));
+		
+		// Fleet Summary
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_FLEET_SUMMARY"));
+		
+		//Click on Save button
+		
+		//clickElementUsingXpath(getLocator("orRoleManagement.XPATH_SAVE_BUTTON"));
+		
+		// Click on Cancel Button
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_CANCEL_BUTTON"));
+		
+		//Logout
+		
+        common.logout();
+	}
+	
+ //Creating SubFleetAdmin Role	
+
+  @Test(dataProvider = "InputDataSupplier", description = "Verify Creation of SubFleet Admin Role")
+  public void Create_SubFleetAdmin_Role(HashMap<String, String> inputData) throws AWTException, Exception {
+	
+			
+  //Login
+	
+	common.login();
+	
+  //Click on Admin tab
+
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADMIN_TAB"));
+	wait(2);
+	
+		
+ 	//Click on Role Management menu
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_RoleManagement"));
+	wait(2);
+	
+	//Click on Add Role Icon
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADD_ROLE"));
+	wait(2);
+	
+	
+	//Enter Role Name
+	
+	typeTextUsingId(getLocator("orRoleManagement.ID_ROLENAME"), inputData.get("ROLE_NAME"));
+	
+//Select Customer
+	
+	TypeTextandEnterUsingId(getLocator("orRoleManagement.ID_CUSTOMER"), inputData.get("CUSTOMER"));
+	wait(2);	
+	
+	//Select Role Type
+	
+	typeTextUsingXpath(getLocator("orRoleManagement.XPATH_ROLETYPE"), inputData.get("ROLE_TYPE"));		
+	wait(3);
+ 
+   // Selecting the Features
+	
+	//Live Tracking
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_LIVE_TRACKING"));
+	
+	// Favorite Vehicle
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_FAVOURITE_VEHICLE"));
+		
+	//Data Log
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_DATA_LOG"));
+		
+	//Click on Save button
+	
+	//clickElementUsingXpath(getLocator("orRoleManagement.XPATH_SAVE_BUTTON"));
+	
+	// Click on Cancel Button
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_CANCEL_BUTTON"));
+	
+	//Logout
+	
+    common.logout();
+}
+  
+  
+  //Creating Fleet Admin Role
+  
+  @Test(dataProvider = "InputDataSupplier", description = "Verify Creation of Fleet Admin Role")
+  public void Create_FleetAdmin_Role(HashMap<String, String> inputData) throws AWTException, Exception {
+	
+			
+  //Login
+	
+	common.login();
+	
+  //Click on Admin tab
+
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADMIN_TAB"));
+	wait(2);
+	
+		
+ 	//Click on Role Management menu
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_RoleManagement"));
+	wait(2);
+	
+	//Click on Add Role Icon
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADD_ROLE"));
+	wait(2);
+	
+	
+	//Enter Role Name
+	
+	typeTextUsingId(getLocator("orRoleManagement.ID_ROLENAME"), inputData.get("ROLE_NAME"));
+	
+//Select Customer
+	
+	TypeTextandEnterUsingId(getLocator("orRoleManagement.ID_CUSTOMER"), inputData.get("CUSTOMER"));
+	wait(2);	
+	
+	//Select Role Type
+	
+	typeTextUsingXpath(getLocator("orRoleManagement.XPATH_ROLETYPE"), inputData.get("ROLE_TYPE"));		
+	wait(3);
+ 
+   // Selecting the Features
+	
+	//Live Tracking
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_LIVE_TRACKING"));
+	
+	// Favorite Vehicle
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_FAVOURITE_VEHICLE"));
+		
+	//Data Log
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_DATA_LOG"));
+		
+	//Click on Save button
+	
+	//clickElementUsingXpath(getLocator("orRoleManagement.XPATH_SAVE_BUTTON"));
+	
+	// Click on Cancel Button
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_CANCEL_BUTTON"));
+	
+	//Logout
+	
+    common.logout();
+}
+  
+  //Verifying the update Functionality  
+  
+  @Test(dataProvider = "InputDataSupplier", description = "Verify the update Functionality")
+  public void Verify_Upadte_Functionality(HashMap<String, String> inputData) throws AWTException, Exception {
+	
+			
+    //Login
+	
+	common.login();
+	
+    //Click on Admin tab
+
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADMIN_TAB"));
+	wait(2);
+	
+		
+ 	//Click on Role Management menu
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_RoleManagement"));
+	wait(2);
+	
+	
+	
+	//Click on Edit Icon	
+	
+	clickElementUsingXpath(getLocator("orRoleManagement.XPATH_EDIT"));
+	Thread.sleep(2000);
+	
+		
+	//Clear the Role Name Input field
+	
+	clearTextUsingId(getLocator("orRoleManagement.ID_ROLENAME"));
+	
+	//Update Role Name
+	
+	typeTextUsingId(getLocator("orRoleManagement.ID_ROLENAME"), inputData.get("ROLE_NAME"));
+	 wait(2);
+	 
+	//Click on Update Button
+	 
+	 dr.findElement(By.xpath("//*[@id='roleDetails']//button[contains(text(),'Update')]")).click();
+	 wait(3);
+	//Verifing updated data
+	 
+	typeTextUsingXpath(getLocator("orRoleManagement.XPATH_SEARCH"), inputData.get("ROLE_NAME"));
+	wait(2);
+	takeSaveScreenShot();
+	
+	
+	actual = getInnerTextUsingXpath(getLocator("orRoleManagement.XPATH_ACTUAL_VALUE"));
+	expected = inputData.get("ROLE_NAME");
+	match(expected, actual, "");
+	
+   //Logout
+	
+    common.logout();
+    
+      	
+    }
+  
+  //verify Sorting Option
+  @Test
+  public void VerifySortingForRoleName() throws InterruptedException{
+	  
+	  //Login
+	  
+	  common.login();
+	  
+	 // Click on Admin Tab
+	  
+	  clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADMIN_TAB"));
+		wait(2);
+					
+ 	//Click on Role Management menu
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_RoleManagement"));
+		wait(2);
+		
+	  VerifySortingUsingXpath(getLocator("orRoleManagement.XPATH_SORTING_ROLENAME"));
+	  
+
+	   //Logout
+		
+	    common.logout();
+	    
+  }
+  
+  public void VerifySortingForRoleType() throws InterruptedException{
+	  
+   //Login
+	  
+	  common.login();
+	  
+	 // Click on Admin Tab
+	  
+	  clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADMIN_TAB"));
+		wait(2);
+					
+ 	//Click on Role Management menu
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_RoleManagement"));
+		wait(2);
+	  
+	    clickElementUsingXpath(getLocator("orRoleManagement.XPATH_HEADER_ROLETYPE"));
+	
+		VerifySortingUsingXpath(getLocator("orRoleManagement.XPATH_SORTING_ROLETYPE"));
+		
+ //Logout
+		
+	    common.logout();
+		
+  }
+  
+  public void VerifySortingForCustomer() throws InterruptedException{
+	  
+ //Login
+	  
+	  common.login();
+	  
+	 // Click on Admin Tab
+	  
+	  clickElementUsingXpath(getLocator("orRoleManagement.XPATH_ADMIN_TAB"));
+		wait(2);
+					
+ 	//Click on Role Management menu
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_RoleManagement"));
+		wait(2);
+		
+		clickElementUsingXpath(getLocator("orRoleManagement.XPATH_HEADER_ROLETYPE"));
+	    
+		VerifySortingUsingXpath(getLocator("orRoleManagement.XPATH_SORTING_CUSTOMER"));
+		
+ //Logout
+		
+	    common.logout();
+  }
+ }
+			
+
