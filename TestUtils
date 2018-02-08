@@ -1,0 +1,350 @@
+package clear.utils;
+
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+
+import org.apache.commons.lang3.RandomStringUtils;
+
+public class TestUtils {
+	
+	/**
+	 * Checks if is null.
+	 *
+	 * @param str the str
+	 * @return true, if is null
+	 */
+	public static  boolean isNull(String str) {
+		if (null == str) {
+			return true;
+		}
+		if ("".equalsIgnoreCase(str.trim())) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Checks if is int.
+	 *
+	 * @param str the str
+	 * @return true, if is int
+	 */
+	public static  boolean isInt(String str) {
+		if (isNull(str))
+			return false;
+		else
+			try {
+				Integer.parseInt(str.trim());
+				return true;
+			} catch (NumberFormatException e) {
+				return false;
+			}
+	}
+	/**
+	 * Checks if is Long.
+	 *
+	 * @param str the str
+	 * @return true, if is Long
+	 */
+	public static  boolean isLong(String str) {
+		if (isNull(str))
+			return false;
+		else
+			try {
+				Long.parseLong(str.trim());
+				return true;
+			} catch (NumberFormatException e) {
+				return false;
+			}
+	}
+	
+	/**
+	 * Converts the Date to any format.
+	 *
+	 * @param str the str
+	 * @return Date in string
+	 */
+	public static String getFormattedDate(Date date, String format) {
+		String formatedDate = "";
+		try{
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(date);
+			SimpleDateFormat sdf = new SimpleDateFormat(format);
+			formatedDate = sdf.format(cal.getTime());
+		}
+		
+		catch(Exception e){
+			return formatedDate;
+		}
+		return formatedDate;
+	}
+	
+	/**
+	 * Retuns a random date from date to within next date
+	 *
+	 * @param frmDate from which date random date to be generated
+	 * 		 maxDays within how many days random date to be calculated
+	 * @return Date in string
+	 */
+	public static Date getRandomDateFuture(Date frmDate, int maxDays) {
+		
+		int ranNum=0;
+		Date ranDate = null;
+		try {
+			Calendar  cal = Calendar.getInstance();
+			cal.setTime(frmDate);
+			ranNum = (int)(Math.random() * maxDays);
+			//System.out.println("R num" + ranNum);
+			cal.add(Calendar.DATE, ranNum);
+			ranDate = cal.getTime();
+		} 
+		
+		catch (Exception e) {
+			return ranDate;
+		}
+		
+		return ranDate;
+	}
+	
+	/**
+	 * Retuns a random date from date to within past maxDays
+	 *
+	 * @param frmDate from which date random date to be generated
+	 * 		 maxDays within how many days random date to be calculated
+	 * @return Date in string
+	 */
+	public static Date getRandomDatePast(Date frmDate, int maxDays) {
+		
+		int ranNum=0;
+		Date ranDate = null;
+		try {
+			Calendar  cal = Calendar.getInstance();
+			cal.setTime(frmDate);
+			ranNum = (int)(Math.random() * maxDays);
+			
+			//negate the integer as we want past random date
+			ranNum *= -1;
+			
+			cal.add(Calendar.DATE, ranNum);
+			ranDate = cal.getTime();
+		} 
+		
+		catch (Exception e) {
+			return ranDate;
+		}
+		
+		return ranDate;
+	}
+	
+	/**
+	 * adds the numOfDays to Date
+	 *
+	 * @param frmDate base date
+	 * 		 numOfDays (-/+) number of days to be added to frmDate
+	 * @return Date 
+	 */
+	public static Date addDays(Date frmDate, int numOfDays) {
+		
+		Date newDate = null;
+		try {
+			Calendar  cal = Calendar.getInstance();
+			cal.setTime(frmDate);
+			cal.add(Calendar.DATE, numOfDays);
+			
+			newDate = cal.getTime();
+		} 
+		
+		catch (Exception e) {
+			return newDate;
+		}
+		
+		return newDate;
+	}
+	
+	/**
+	 * Generates random string
+	 *
+	 * @param int length
+	 * @return string
+	 * @author rae4kor
+	 */
+
+    public static String generateRandomString(int stringLength) {
+      char[] values = {'a','b','c','d','e','f','g','h','i','j',
+    		  			'k','l','m','n','o','p','q','r','s','t',
+    		  			'u','v','w','x','y','z','0','1','2','3', '4','5','6','7','8','9'};
+
+      String out = "";
+
+      for (int i=0;i<stringLength;i++) {
+        out += values[(int)(Math.random() * stringLength)];
+      }
+
+      return out;
+    }
+	
+	/**
+	 * Gets the calendar.
+	 *
+	 * @param date the date
+	 * @return the calendar
+	 */
+	public static Calendar getCalendar(Date date) {
+		if (date == null) {
+			date = Calendar.getInstance(Locale.US).getTime();
+		}
+		Calendar cal = Calendar.getInstance(Locale.US);
+		cal.setTime(date);
+		return cal;
+	}
+	
+	/**
+	 * Gets the time zone date into date. Converts input date (date format) to
+	 * given time zone and returns date (Date format)
+	 * 
+	 * @param date
+	 *            the date
+	 * @param iTimeZone
+	 *            the input time zone
+	 * @param oTimeZone
+	 *            the output time zone
+	 * @return the time zone date into date
+	 */
+	public static Date getTimeZoneDateIntoDate(Date date, String iTimeZone,
+			String oTimeZone) {
+		try {
+			
+			TimeZone iTZ = TimeZone.getTimeZone(iTimeZone);
+			int iOff = iTZ.getRawOffset();
+			TimeZone oTZ = TimeZone.getTimeZone(oTimeZone);
+			int oOff = oTZ.getRawOffset();
+			Date converted = new Date();
+			converted.setTime(date.getTime() - iOff + oOff);
+			
+			//handling Day light savings
+			long dst = 1*60*60*1000;
+			if (oTZ.inDaylightTime(converted)){
+				converted.setTime(converted.getTime()+oOff+dst);
+			}else {
+				converted.setTime(converted.getTime()+oOff);
+			}
+			return converted;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return date;
+	}
+
+
+	
+	/**
+	 * Generates random number
+	 *
+	 * @param int length
+	 * @return string
+	 * @author rae4kor
+	 */
+	
+	public static String generateRandomNumber(int length){
+		char[] values = {'1','2','3', '4','5','6','7','8','9'};
+
+String out = "";
+
+for (int i=0;i<length;i++) {
+out += values[(int)(Math.random() * length)];
+}
+
+return out;
+	}
+	
+	/**
+	 * Generates random alphanumeric
+	 *
+	 * @param int length
+	 * @return string
+	 * @author rae4kor
+	 */
+	
+	public static String generateRandomAlphaNumeric(int length){
+		char[] values = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',
+						 'p','q','r','s','t','u','v','w','x','y','z',
+						 '0','1','2','3', '4','5','6','7','8','9',
+						 '-','_','?','/','<','>','%','$','#','!',';',':','?','&','^','@'};
+
+String out = "";
+
+for (int i=0;i<length;i++) {
+out += values[(int)(Math.random() * length)];
+}
+
+return out;
+	}
+	
+	/**
+	 * Generates random alphanumeric with special characters
+	 *
+	 * @param int length
+	 * @return string
+	 * @author rae4kor
+	 */
+	
+	public static String generateStringWithAllobedSplChars(int length,String allowdSplChrs){
+		String allowedChars="abcdefghijklmnopqrstuvwxyz" +   //alphabets
+				"1234567890" +   //numbers
+				allowdSplChrs;
+		return RandomStringUtils.random(length, allowedChars);
+	}
+	
+	
+	/**
+	 * Generates random email id with bosch.com
+	 *
+	 * @param int length
+	 * @return string
+	 * @author rae4kor
+	 */
+	
+	public static String generateEmail(int length) {
+		char[] values = {'a','b','c','d','e','f','g','h','i','j',
+	  			'k','l','m','n','o','p','q','r','s','t',
+	  			'u','v','w','x','y','z','0','1','2','3', '4','5','6','7','8','9','_'};
+
+String out = "";
+
+for (int i=0;i<length;i++) {
+out += values[(int)(Math.random() * length)];
+}
+
+		String email = out+"@bosch.com";
+		return email;
+	}
+	
+	
+	/**
+	 * Generates random URL
+	 *
+	 * @param int length
+	 * @return string
+	 * @author rae4kor
+	 */
+	
+	public static String generateUrl(int length) {
+		String allowedChars="abcdefghijklmnopqrstuvwxyz" +   //alphabets
+				"1234567890" +   //numbers
+				"_-.";   //special characters
+		String url="";
+		String temp=RandomStringUtils.random(length,allowedChars);
+		url=temp.substring(0,3)+"."+temp.substring(4,temp.length()-4)+"."+temp.substring(temp.length()-3);
+		return url;
+	}
+	
+
+	
+	
+	
+	
+}
