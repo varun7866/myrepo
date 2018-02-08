@@ -1,0 +1,2360 @@
+package clear.driver;
+
+import java.awt.AWTException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Properties;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.openqa.selenium.Alert;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.NoAlertPresentException;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.Proxy;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxProfile;
+import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.remote.Augmenter;
+import org.openqa.selenium.remote.CapabilityType;
+import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.UnreachableBrowserException;
+import org.openqa.selenium.support.ui.ExpectedCondition;
+import org.openqa.selenium.support.ui.FluentWait;
+import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.support.ui.Wait;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.Assert;
+import org.testng.ITestContext;
+import org.testng.Reporter;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Function;
+
+import clear.utils.ExcelData;
+import clear.utils.LogFormatter;
+import clear.utils.OraDBData;
+import clear.utils.PropertyLoader;
+import clear.utils.TestUtils;
+
+/* test.osp.common.DesktopCommon;*/
+
+/**
+ * This class base class of all the test scripts, include generic and framework
+ * methods
+ * 
+ * @author Jagadeesh
+ * @version 1.0
+ */
+@SuppressWarnings("unused")
+public class TestDriver {
+
+	private static Properties config = null;
+	private static Properties or = null;
+
+	private static PropertyLoader propLoader = null;
+	public static WebDriver dr = null;
+	public static ExcelData xl = null;
+	public static OraDBData db = null;
+    
+	public static FileInputStream fip = null;
+	private static String aut;
+	private static String autPath;
+	private static String orPath;
+	public static String configPath;
+	private static String dataSheetPath;
+	private static String executionMachine;
+	public static String buildNumber;
+	public static String tester;
+	protected String actual = null, expected = null;
+	private static URL url = null;
+	protected static TestUtils testUtils = null;
+
+	static FileHandler hand = null;
+	static Logger log = null;
+	
+	public static enum LogType {
+		INFO, PASS, SOFTFAIL, WARNING, SCREENSHOT, UNCOMPLETED, TEXTLOGONLY, HARDFAIL
+	};
+
+	/**
+	 * This method is to initiate the test script execution.
+	 * 
+	 * @param
+	 * @return
+	 * @throws MalformedURLException 
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	@BeforeClass
+	public static void initExecution(ITestContext context) throws MalformedURLException {
+		ReportLog("Test execution started", LogType.TEXTLOGONLY);
+
+		db = new OraDBData();
+		propLoader = new PropertyLoader();
+
+		// validate test setup
+		testSetupValidator(context);
+
+		// create testUtils object
+		testUtils = new TestUtils();
+
+		// load config.properties
+		config = new Properties();
+		try {
+			fip = new FileInputStream(configPath + "/config.properties");
+			config.load(fip);
+			ReportLog("Load config.prop ", LogType.PASS);
+
+		} catch (Exception e) {
+			ReportLog("Error while loading config.properties file", LogType.UNCOMPLETED);
+			e.printStackTrace();
+		}
+
+		// load object repository
+		or = new Properties();
+		or = propLoader.loadOR(new File(orPath));
+
+		// create driver object based on browser
+		try {
+
+			url = new URL("http", executionMachine, 4444, "/wd/hub");
+		} catch (MalformedURLException e) {
+			ReportLog("Execution machine ip or port or path is incorrect", LogType.UNCOMPLETED);
+		}
+
+		if (getConfigVal("BROWSER").trim().equals("FF")) {
+			ReportLog("Browser to be used for testing: Firefox ", LogType.INFO);
+			try {
+				System.setProperty("webdriver.gecko.driver", "./geckodriver.exe");
+				DesiredCapabilities capabilities = DesiredCapabilities.firefox();
+				capabilities.setCapability("marionette", true);
+
+//Proxy Settings Info
+/*				0 - Direct connection (or) no proxy. 
+
+				1 - Manual proxy configuration
+
+				2 - Proxy auto-configuration (PAC).
+
+				4 - Auto-detect proxy settings.
+
+				5 - Use system proxy settings.*/
+				
+//Working Firefox Profile
+				
+				final FirefoxProfile firefoxProfile = new FirefoxProfile();
+				Proxy proxy = new Proxy();
+				proxy.setProxyType(Proxy.ProxyType.PAC);
+				proxy.setProxyAutoconfigUrl("http://rbins-ap.bosch.com/bmh.pac");
+				firefoxProfile.setPreference("xpinstall.signatures.required", false);
+				firefoxProfile.setPreference("browser.startup.homepage_override.mstone", "ignore");
+				firefoxProfile.setPreference("startup.homepage_welcome_url.additional", "about:blank");
+				capabilities.setCapability(FirefoxDriver.PROFILE, firefoxProfile);
+				capabilities.setBrowserName("firefox");
+				
+
+				
+//Manual Proxy Settings
+				
+/*				FirefoxProfile profile = new FirefoxProfile();
+				String PROXY = "http://rbins-ap.bosch.com/bmh.pac";
+				org.openqa.selenium.Proxy proxy1 = new org.openqa.selenium.Proxy();
+				proxy1.setHttpProxy(PROXY);
+				proxy1.setFtpProxy(PROXY);
+				proxy1.setSslProxy(PROXY);
+				FirefoxDriver driver = new FirefoxDriver(profile);*/
+				
+/*				 Proxy proxy = new Proxy();
+				 proxy.setProxyType(Proxy.ProxyType.PAC);
+				 proxy.setProxyAutoconfigUrl("http://rbins-ap.bosch.com/bmh.pac");
+				 capabilities.setCapability(CapabilityType.PROXY, proxy);
+				 DesiredCapabilities cap = new DesiredCapabilities();
+				 cap.setCapability(CapabilityType.PROXY, proxy);
+				 WebDriver driver = new FirefoxDriver(cap);*/
+
+//Test1				
+				
+/*				FirefoxProfile profile = new FirefoxProfile();
+				profile.setPreference("network.proxy.type", 5);
+				profile.setPreference("network.proxy.autoconfig_url", "http://rbins-ap.bosch.com/bmh.pac");
+				WebDriver driver = new FirefoxDriver(profile);*/
+
+//Test2					
+
+				
+/*				String PROXY = "http://rbins-ap.bosch.com/bmh.pac" + ":" + "80";
+			    org.openqa.selenium.Proxy proxy = new org.openqa.selenium.Proxy();
+			    proxy.setHttpProxy(PROXY).setFtpProxy(PROXY).setSslProxy(PROXY);
+			    DesiredCapabilities cap = new DesiredCapabilities();
+			    cap.setCapability(CapabilityType.PROXY, proxy);
+			    WebDriver driver = new FirefoxDriver(cap);
+			    driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);*/
+
+				
+//Test3					
+				
+/*              FirefoxProfile firefoxProfile = new FirefoxProfile();
+                firefoxProfile.setPreference("xpinstall.signatures.required", false);
+                firefoxProfile.setPreference("network.proxy.type", ProxyType.AUTODETECT.ordinal());
+                firefoxProfile.setPreference("browser.startup.homepage_override.mstone", "ignore"); 
+                firefoxProfile.setPreference("startup.homepage_welcome_url.additional", "about:blank");
+                capabilities.setCapability(FirefoxDriver.PROFILE, firefoxProfile);
+                capabilities.setBrowserName("firefox"); */
+
+				
+				
+//Test4	
+/*				
+				ProfilesIni profile = new ProfilesIni();
+				FirefoxProfile myprofile = profile.getProfile("profileToolsQA");
+				WebDriver driver = new FirefoxDriver(myprofile);
+				driver.get("untrusted/self-signed URL");
+				myprofile.setPreference("xpinstall.signatures.required", false);
+				myprofile.setPreference("network.proxy.type", ProxyType.AUTODETECT.ordinal());
+				myprofile.setPreference("browser.startup.homepage_override.mstone", "ignore");
+				myprofile.setPreference("startup.homepage_welcome_url.additional", "about:blank");
+				capabilities.setCapability(FirefoxDriver.PROFILE, myprofile);
+				capabilities.setBrowserName("firefox");*/
+
+				dr = new RemoteWebDriver(url, capabilities);
+
+			}
+
+			catch (UnreachableBrowserException e) {
+				ReportLog("Selenium server is NOT started or unreachable", LogType.UNCOMPLETED);
+			} catch (Exception e) {
+				ReportLog("Exception caught while reaching server", LogType.UNCOMPLETED);
+			}
+		}
+
+		else if (getConfigVal("BROWSER").trim().equals("CR")) {
+			ReportLog("Browser to be used for testing: Chrome ", LogType.INFO);
+			System.setProperty("webdriver.chrome.driver", "./chromedriver.exe");
+			ChromeOptions options = new ChromeOptions();
+			options.addArguments("--start-maximized");
+			dr = new ChromeDriver(options);
+			//DesiredCapabilities capabilities = DesiredCapabilities.chrome();
+			//capabilities.setCapability(ChromeOptions.CAPABILITY, options);
+			//dr = new RemoteWebDriver(new URL("http://localhost:4444/wd/hub"), capabilities);
+			dr.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+           
+		} 
+		
+		else if (getConfigVal("BROWSER").trim().equals("IE")) {
+			ReportLog("Browser to be used for testing: IE ", LogType.INFO);
+			File file = new File("./IEDriverServer.exe");
+			System.setProperty("webdriver.ie.driver", file.getAbsolutePath());
+			// System.setProperty("webdriver.ie.driver","./IEDriverServer.exe");
+
+			DesiredCapabilities ieCapabilities = DesiredCapabilities.internetExplorer();
+			// Setting proxy for IE alone
+			String PROXY = "http://rbins-ap.bosch.com/bmh.pac" + ":" + "80";
+			org.openqa.selenium.Proxy proxy = new org.openqa.selenium.Proxy();
+			proxy.setHttpProxy(PROXY);
+			proxy.setFtpProxy(PROXY);
+			proxy.setSslProxy(PROXY);
+
+			ieCapabilities.setJavascriptEnabled(true);
+			ieCapabilities.setBrowserName("internet explorer");
+			ieCapabilities.setCapability(InternetExplorerDriver.INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS, true);
+			ieCapabilities.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
+
+			// ieCapabilities.setCapability(InternetExplorerDriver.INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS,
+			// true);
+			ieCapabilities.setCapability(InternetExplorerDriver.IGNORE_ZOOM_SETTING, true);
+			ieCapabilities.setCapability("nativeEvents", false);
+			ieCapabilities.setCapability(CapabilityType.PROXY, proxy);
+			ieCapabilities.setJavascriptEnabled(true);
+			ieCapabilities.setPlatform(Platform.ANY);
+
+			try {
+				dr = new RemoteWebDriver(url, ieCapabilities);
+				dr.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+			} catch (UnreachableBrowserException e) {
+				ReportLog("Selenium server is NOT started or unreachable", LogType.UNCOMPLETED);
+			}
+
+		} else {
+			ReportLog("Browser cannot be initialized - check config.prop, valid browser values FF or IE ",
+					LogType.UNCOMPLETED);
+		}
+	}
+
+	static {
+		try {
+			FileHandler hand = new FileHandler(
+					"test-report/log/log" + (new SimpleDateFormat("ddMMMyyHHmma").format(new Date())) + ".log");
+
+			LogFormatter slf = new LogFormatter();
+
+			hand.setFormatter(slf);
+			hand.setLevel(Level.ALL);
+			log = Logger.getLogger("TEXTLOG");
+			log.addHandler(hand);
+		} catch (Exception e) {
+			ReportLog("Failed to create log file..", LogType.SOFTFAIL);
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * This method is to clean up the setup once the execution is done.
+	 * 
+	 * @param
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh modified by Jagadeesh (added logout if session is
+	 *             running)
+	 */
+	@AfterClass
+	public static void cleanSetup() {
+		dr.manage().deleteAllCookies();
+		dr.close();
+		// delete all the screenshot..
+	}
+
+	/**
+	 * This method supplies data to test scripts
+	 * 
+	 * @param
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+
+	@DataProvider(name = "InputDataSupplier")
+	public static Object[][] dataSupplier(Method method, ITestContext context) {
+
+		String sheetName = null;
+		Object[][] data = null;
+
+		try {
+			// Get the class name using method.
+			String sheetNameTemp[] = method.toString().split("\\.");
+
+			sheetName = dataSheetPath + "//" + sheetNameTemp[3].toString() + ".xls";
+			data = ExcelData.GetSheetData(sheetName);
+
+			ReportLog("Data Sheet loaded successfully" + sheetName, LogType.PASS);
+		}
+
+		catch (FileNotFoundException e) {
+			ReportLog("Data Sheet " + sheetName + " Not found. AUT: " + aut, LogType.UNCOMPLETED);
+			e.printStackTrace();
+		}
+
+		catch (IOException e) {
+			ReportLog("IO error while loading " + sheetName + " for AUT:" + aut, LogType.UNCOMPLETED);
+			e.printStackTrace();
+		}
+
+		catch (Exception e) {
+			ReportLog("Exception caught while loading  " + sheetName + "for AUT:" + aut, LogType.UNCOMPLETED);
+			e.printStackTrace();
+		}
+
+		return data;
+	}
+
+	/**
+	 * Method to validate the test setup, this will run before every test
+	 * script.
+	 * 
+	 * @param ITestContext
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void testSetupValidator(ITestContext context) {
+
+		File directory = null;
+
+		ReportLog("Validating test setup..", LogType.TEXTLOGONLY);
+
+		// read the aut from XML
+		aut = context.getCurrentXmlTest().getParameter("aut").trim();
+		executionMachine = context.getCurrentXmlTest().getParameter("ip").trim();
+		buildNumber = context.getCurrentXmlTest().getParameter("build").trim();
+		tester = context.getCurrentXmlTest().getParameter("tester").trim();
+
+		// check if application name is not passed
+		if (aut.isEmpty()) {
+			ReportLog("Unable to find 'aut' parameter in the xml", LogType.UNCOMPLETED);
+		} else {
+			ReportLog("Application under test: " + aut, LogType.TEXTLOGONLY);
+		}
+
+		if (executionMachine.isEmpty()) {
+			ReportLog("Unable to find 'ip' parameter in the xml", LogType.UNCOMPLETED);
+		} else {
+			ReportLog("Execution machine: " + executionMachine, LogType.TEXTLOGONLY);
+		}
+
+		// check existence of app folder inside test
+		autPath = "src/test/" + aut;
+		directory = new File(autPath);
+		if (directory.exists() && directory.isDirectory()) {
+			ReportLog("Folder " + autPath + " exists", LogType.TEXTLOGONLY);
+		} else {
+			ReportLog("Folder " + autPath + " NOT exists", LogType.UNCOMPLETED);
+		}
+
+		// check existence of config folder
+		configPath = autPath + "/config";
+		directory = new File(configPath);
+		if (directory.exists() && directory.isDirectory()) {
+			ReportLog("Config folder " + configPath + " exists", LogType.TEXTLOGONLY);
+		} else {
+			ReportLog("Config folder " + configPath + " NOT exists", LogType.UNCOMPLETED);
+		}
+
+		// check existence of OR folder
+		orPath = autPath + "/or";
+		directory = new File(orPath);
+		if (directory.exists() && directory.isDirectory()) {
+			ReportLog("Object Repository folder " + orPath + " exists", LogType.TEXTLOGONLY);
+		} else {
+			ReportLog("Object Repository folder " + orPath + " NOT exists", LogType.UNCOMPLETED);
+		}
+
+		// check existence of data sheet folder
+		dataSheetPath = "resources/datasheet/" + aut;
+		directory = new File(dataSheetPath);
+		if (directory.exists() && directory.isDirectory()) {
+			ReportLog("Data Sheet folder " + dataSheetPath + " exists", LogType.TEXTLOGONLY);
+		} else {
+			ReportLog("Data Sheet folder " + dataSheetPath + " NOT exists", LogType.UNCOMPLETED);
+		}
+		ReportLog("Test setup successful", LogType.TEXTLOGONLY);
+	}
+
+	/**
+	 * This method is to be called to ensure object present before the action
+	 * 
+	 * @param locator
+	 * @throws @author
+	 *             Jagadeesh
+	 * 
+	 */
+
+	public static boolean isElementPresent(By locator, String elementName) {
+		boolean isPresent = false;
+		if (waitForElementToBePresent(locator)) {
+			ReportLog("Element " + elementName + " present. Locator text:" + locator.toString(), LogType.TEXTLOGONLY);
+			isPresent = true;
+		} else {
+			/*
+			 * if(isElementDisplayedById("indexlogout")){
+			 * clickElementUsingId("indexlogout"); wait(2);
+			 * if(isElementDisplayedByXpath(
+			 * "//button/span[contains(text(),'OK')]")){
+			 * clickElementUsingXpath("//button/span[contains(text(),'OK')]");
+			 * waitForPageLoad(); } else if(isElementDisplayedById("okBtn")){
+			 * clickElementUsingId("okBtn"); waitForPageLoad(); ReportLog(
+			 * "Logged out as element not found", LogType.INFO); } }
+			 */
+			ReportLog("Element " + elementName + " NOT present. Locator text:" + locator.toString(), LogType.HARDFAIL);
+
+		}
+		return isPresent;
+	}
+
+	/**
+	 * This method is
+	 * 
+	 * @param locator
+	 * @throws @author
+	 *             Jagadeesh
+	 * 
+	 */
+
+	public static boolean isElementVisible(By locator) {
+		boolean isVisible = false;
+		try {
+			WebElement we = dr.findElement(locator);
+			isVisible = we.isEnabled();
+		} catch (Exception e) {
+			return false;
+		}
+
+		return isVisible;
+	}
+
+	/**
+	 * This method is to find whether element displayed or not
+	 * 
+	 * @param locator
+	 * @throws @author
+	 *             Jagadeesh
+	 * 
+	 */
+
+	public static boolean isElementDisplayedById(String elementInfo) {
+		boolean isDisplayed = false;
+		By locator = By.id(getIdentifier(elementInfo));
+		try {
+
+			WebElement we = dr.findElement(locator);
+			isDisplayed = we.isDisplayed();
+
+		} catch (Exception e) {
+			return false;
+		}
+
+		return isDisplayed;
+	}
+
+	/**
+	 * This method is to find whether element displayed or not
+	 * 
+	 * @param locator
+	 * @throws @author
+	 *             Jagadeesh
+	 * 
+	 */
+
+	public static boolean isElementDisplayedByXpath(String elementInfo) {
+		boolean isDisplayed = false;
+		By locator = By.xpath(getIdentifier(elementInfo));
+		try {
+
+			WebElement we = dr.findElement(locator);
+			isDisplayed = we.isDisplayed();
+
+		} catch (Exception e) {
+			return false;
+		}
+
+		return isDisplayed;
+	}
+
+	/**
+	 * This method is to be called to click buttons in the decision question
+	 * 
+	 * @param elementInfo
+	 * @throws @author
+	 *             Jagadeesh
+	 * 
+	 */
+
+	public static void clickElementUsingId(String elementInfo) {
+		By locator = By.id(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).click();
+			ReportLog("Click on '" + getIdentifierText(elementInfo) + "' button/link/check-box", LogType.PASS);
+		}
+	}
+
+	/**
+	 * This method is to be called to click buttons in the decision question
+	 * 
+	 * @param elementName
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void clickElementUsingName(String elementInfo) {
+
+		By locator = By.name(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).click();
+			ReportLog("Click on '" + getIdentifierText(elementInfo) + "' button/link", LogType.PASS);
+		}
+
+	}
+
+	/**
+	 * This method is to be called to click buttons in the decision question
+	 * 
+	 * @param xpath
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void clickElementUsingXpath(String elementInfo) {
+
+		By locator = By.xpath(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).click();
+			ReportLog("Click on '" + getIdentifierText(elementInfo) + "' button/link", LogType.PASS);
+		}
+	}
+
+	/**
+	 * This method is to be called to click link using its text
+	 * 
+	 * @param elementInfo
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void clickLinkUsingText(String elementInfo) {
+		By locator = By.linkText(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).click();
+			ReportLog("Click on '" + getIdentifierText(elementInfo) + "' button/link", LogType.PASS);
+		}
+	}
+
+	/**
+	 * This method is to be called to enter text using element id
+	 * 
+	 * @param elementInfo,
+	 *            text
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void typeTextUsingId(String elementInfo, String text) {
+		By locator = By.id(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).sendKeys(text);
+			ReportLog("Type text '" + text + "' into " + getIdentifierText(elementInfo), LogType.PASS);
+		}
+
+	}
+
+	/**
+	 * This method is to be called to clear text using element id
+	 * 
+	 * @param elementInfo
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void clearTextUsingName(String elementInfo) {
+		By locator = By.name(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).clear();
+			ReportLog("Text field " + getIdentifierText(elementInfo) + " cleared.", LogType.PASS);
+
+		}
+
+	}
+
+	/**
+	 * This method is to be called to clear text using element id
+	 * 
+	 * @param elementInfo
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void clearTextUsingId(String elementInfo) {
+		By locator = By.id(getIdentifier(elementInfo));
+		
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).clear();
+			ReportLog("Text field " + getIdentifierText(elementInfo) + " cleared.", LogType.PASS);
+
+		}
+
+	}
+
+	/**
+	 * This method is to be called to clear text using element xpath
+	 * 
+	 * @param elementInfo
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void clearTextUsingXpath(String elementInfo) {
+		By locator = By.xpath(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).clear();
+			ReportLog("Text field " + getIdentifierText(elementInfo) + " cleared.", LogType.PASS);
+
+		}
+
+	}
+
+	/**
+	 * This method is to be called to enter text using element id
+	 * 
+	 * @param elementInfo,
+	 *            text
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void typeTextUsingName(String elementInfo, String text) {
+		By locator = By.name(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).sendKeys(text);
+			ReportLog("Type text '" + text + "' into " + getIdentifierText(elementInfo), LogType.PASS);
+
+		}
+
+	}
+
+	/**
+	 * This method is to be called to select from the drop down using id
+	 * 
+	 * @param elementInfo,
+	 *            text
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void selectUsingId(String elementInfo, String text) {
+		By locator = By.id(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			Select searchType = new Select(dr.findElement(locator));
+			searchType.selectByVisibleText(text);
+			ReportLog("Select text '" + text + "' from " + getIdentifierText(elementInfo) + " dropdown", LogType.PASS);
+
+		}
+
+	}
+
+	/**
+	 * This method is to be called to select by index from the drop down using
+	 * id
+	 * 
+	 * @param elementInfo,
+	 *            value
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * @return
+	 * 
+	 */
+	public static String selectIndexUsingId(String elementInfo, int value) {
+		By locator = By.id(getIdentifier(elementInfo));
+		String text = "No Dropdown Value Selected";
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			Select searchType = new Select(dr.findElement(locator));
+			searchType.selectByIndex(value);
+			wait(2);
+			text = searchType.getFirstSelectedOption().getText();
+			wait(2);
+			ReportLog("Select random value '" + text + "' from " + getIdentifierText(elementInfo) + " dropdown",
+					LogType.PASS);
+		}
+		return text;
+
+	}
+
+	/**
+	 * This method is to be called to get selected value from the drop down
+	 * using id
+	 * 
+	 * @param elementInfo,
+	 *            value
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * @return
+	 * 
+	 */
+	public static String getDropdownValueUsingId(String elementInfo) {
+		By locator = By.id(getIdentifier(elementInfo));
+		String text = "No Dropdown Value Selected";
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			Select searchType = new Select(dr.findElement(locator));
+			text = searchType.getFirstSelectedOption().getText();
+			ReportLog(text + " by default in " + getIdentifierText(elementInfo) + " dropdown", LogType.PASS);
+		}
+		return text;
+
+	}
+	
+	
+	/**
+	 * This method is to be called to select from the dropdown using xpath
+	 * 
+	 * @param elementInfo,
+	 *            text
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void selectUsingXpath(String elementInfo, String text) {
+		By locator = By.xpath(getIdentifier(elementInfo));
+		
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			Select searchType = new Select(dr.findElement(locator));
+			searchType.selectByVisibleText(text);			
+			ReportLog("Select text '" + text + "' from " + getIdentifierText(elementInfo) + " dropdown", LogType.PASS);
+
+		}
+
+	}
+
+	/**
+	 * This method is to be called to select by index from the drop down using
+	 * id
+	 * 
+	 * @param elementInfo,
+	 *            value
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * @return
+	 * 
+	 */
+	public static String selectIndexUsingXpath(String elementInfo, int value) {
+		By locator = By.xpath(getIdentifier(elementInfo));
+		String text = "No Value Selected";
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			Select searchType = new Select(dr.findElement(locator));
+			searchType.selectByIndex(value);
+			text = searchType.getFirstSelectedOption().getText();
+			ReportLog("Select random value '" + text + "' from " + getIdentifierText(elementInfo) + " dropdown",
+					LogType.PASS);
+		}
+		return text;
+
+	}
+
+	/**
+	 * This method is to be called to get selected value from the drop down
+	 * using xpath
+	 * 
+	 * @param elementInfo,
+	 *            value
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * @return
+	 * 
+	 */
+	public static String getDropdownValueUsingXpath(String elementInfo) {
+		By locator = By.xpath(getIdentifier(elementInfo));
+		String text = "No Value Selected";
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			Select searchType = new Select(dr.findElement(locator));
+			text = searchType.getFirstSelectedOption().getText();
+			ReportLog(text + "is present by deafult in " + getIdentifierText(elementInfo) + " dropdown", LogType.PASS);
+		}
+		return text;
+
+	}
+
+	/**
+	 * This method is to be called to get the count of values from the drop down
+	 * using xpath
+	 * 
+	 * @param elementInfo,
+	 *            value;
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * @return
+	 * 
+	 */
+	public static int getDropdownCountUsingXpath(String elementInfo) {
+		By locator = By.xpath(getIdentifier(elementInfo));
+		int count = 0;
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			Select searchType = new Select(dr.findElement(locator));
+			List<WebElement> ddl = searchType.getOptions();
+			count = ddl.size();
+			ReportLog(count + " values present in " + getIdentifierText(elementInfo) + " dropdown", LogType.PASS);
+		}
+		return count;
+
+	}
+
+	/**
+	 * This method is to be called to get the count of values from the drop down
+	 * using xpath
+	 * 
+	 * @param elementInfo,
+	 *            value;
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * @return
+	 * 
+	 */
+	public static int getDropdownCountUsingId(String elementInfo) {
+		By locator = By.id(getIdentifier(elementInfo));
+		int count = 0;
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			Select searchType = new Select(dr.findElement(locator));
+			List<WebElement> ddl = searchType.getOptions();
+			count = ddl.size();
+			ReportLog(count + " values present in " + getIdentifierText(elementInfo) + " dropdown", LogType.PASS);
+		}
+		return count;
+
+	}
+
+	/**
+	 * This method is to be called to select from the dropdown using Name
+	 * 
+	 * @param elementInfo,
+	 *            text
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void selectUsingName(String elementInfo, String text) {
+		By locator = By.name(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			Select searchType = new Select(dr.findElement(locator));
+			searchType.selectByVisibleText(text);
+			ReportLog("Select text '" + text + "' from " + getIdentifierText(elementInfo) + " dropdown", LogType.PASS);
+
+		}
+
+	}
+
+	/**
+	 * This method is to be called to verify the value sent present or not in
+	 * the drop down using Id
+	 * 
+	 * @param elementInfo,
+	 *            text
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static boolean dropDownHasById(String elementInfo, String text) {
+		boolean flag = false;
+		WebElement dropdown = dr.findElement(By.id(getIdentifier(elementInfo)));
+		Select select = new Select(dropdown);
+		List<WebElement> options = select.getOptions();
+		for (WebElement we : options) {
+			if (we.getText().equals(text)) {
+				flag = true;
+				ReportLog("Account found: " + we.getText(), LogType.PASS);
+				break;
+			}
+		}
+		if (!flag) {
+			ReportLog("Account not found: " + text, LogType.WARNING);
+		}
+		return flag;
+
+	}
+
+	/**
+	 * This method is to be called to verify the value sent present or not in
+	 * drop down using xpath
+	 * 
+	 * @param elementInfo,
+	 *            text
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static boolean dropDownHasByXpath(String elementInfo, String text) {
+		boolean flag = false;
+		WebElement dropdown = dr.findElement(By.xpath(getIdentifier(elementInfo)));
+		Select select = new Select(dropdown);
+		List<WebElement> options = select.getOptions();
+		for (WebElement we : options) {
+			if (we.getText().equals(text)) {
+				we.click();
+				ReportLog("Account found: " + we.getText(), LogType.PASS);
+				flag = true;
+			}
+		}
+		if (!flag) {
+			ReportLog("Account not found: " + text, LogType.WARNING);
+		}
+		return flag;
+	}
+
+	/**
+	 * This method is to be called to enter text using element xpath
+	 * 
+	 * @param elementInfo,
+	 *            text
+	 * @throws InterruptedException
+	 * @author Jagadeesh
+	 * 
+	 */
+	public static void typeTextUsingXpath(String elementInfo, String text) {
+		By locator = By.xpath(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			dr.findElement(locator).sendKeys(text);
+			ReportLog("Type text '" + text + "' into " + getIdentifierText(elementInfo), LogType.PASS);
+
+		}
+
+	}
+
+	/**
+	 * This method is to wait for page to load completely till the document
+	 * status is ready
+	 * 
+	 * @param
+	 * @return
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static void waitForPageLoad() {
+		long startTime, endTime = 0;
+		double duration = 0;
+		try {
+			startTime = System.nanoTime();
+
+			ExpectedCondition<Boolean> pageLoadCondition = new ExpectedCondition<Boolean>() {
+				@Override
+				public Boolean apply(WebDriver driver) {
+					return ((JavascriptExecutor) driver).executeScript("return document.readyState").equals("complete");
+				}
+			};
+
+			WebDriverWait wait = new WebDriverWait(dr, 120);
+			wait.until(pageLoadCondition);
+
+			endTime = System.nanoTime();
+			duration = (endTime - startTime) / 1.0E09;
+
+			ReportLog("Wait for page load. [waited " + String.valueOf(new DecimalFormat("##.00").format(duration))
+					+ " secs]", LogType.INFO);
+		} catch (Exception e) {
+			ReportLog("Error while waiting for page load.", LogType.WARNING);
+		}
+	}
+
+	/**
+	 * Fluent wait. Waits for element to be present on the screen by polling
+	 * every 3 secs
+	 * 
+	 * @param locator
+	 * @throws @return
+	 *             boolean true if present, false if not present
+	 * @author Jagadeesh
+	 */
+	public static boolean waitForElementToBePresent(final By locator) {
+		boolean isPresent = false;
+		WebElement element = null;
+		try {
+			Wait<WebDriver> wait = new FluentWait<WebDriver>(dr).withTimeout(45, TimeUnit.SECONDS)
+					.pollingEvery(3, TimeUnit.SECONDS).ignoring(NoSuchElementException.class);
+
+			element = wait.until(new Function<WebDriver, WebElement>() {
+				@Override
+				public WebElement apply(WebDriver driver) {
+					// ReportLog("Element found", LogType.INFO);
+					return driver.findElement(locator);
+				}
+			});
+		}
+
+		catch (Exception e) {
+			e.printStackTrace();
+			ReportLog("Wait for element timed out after 45 secs.", LogType.WARNING);
+		}
+
+		return element != null;
+	}
+
+	/**
+	 * Waits in seconds
+	 * 
+	 * @param seconds
+	 * @throws @return
+	 * @author Jagadeesh
+	 */
+	public static void wait(final int secs) {
+
+		try {
+			Thread.sleep(secs * 1000);
+		}
+
+		catch (Exception e) {
+			ReportLog("Exception in wait", LogType.WARNING);
+		}
+
+	}
+
+	/**
+	 * This method is to check whether alert box is present or not
+	 * 
+	 * @param action
+	 *            on alert eg. accept, dismiss, ok
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+
+	public static boolean isAlertPresent(String action) {
+		boolean presentFlag = false;
+
+		try {
+
+			// Check the presence of alert
+			Alert alert = TestDriver.dr.switchTo().alert();
+			// Alert present; set the flag
+			presentFlag = true;
+
+			// if present consume the alert
+			if (action.equalsIgnoreCase("accept")) {
+				alert.accept();
+			} else {
+				alert.dismiss();
+			}
+		} catch (NoAlertPresentException ex) {
+			// Alert not present
+			// ex.printStackTrace();
+		}
+		ReportLog(" Alert =" + presentFlag, LogType.PASS);
+		return presentFlag;
+
+	}
+
+	/**
+	 * This method reads the inner text
+	 * 
+	 * @param xpath
+	 *            of web object
+	 * @return innerText of xpath element
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static String getInnerTextUsingXpath(String elementInfo) {
+		By locator = By.xpath(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			return dr.findElement(locator).getText();
+			
+						
+		} else {
+			ReportLog("getText Failed for " + getIdentifierText(elementInfo), LogType.HARDFAIL);
+			return "NULL";
+		}
+
+	}
+
+	/**
+	 * This method reads the inner text
+	 * 
+	 * @param id
+	 *            of web object
+	 * @return innerText of element id
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static String getInnerTextUsingId(String elementInfo) {
+		By locator = By.id(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			return dr.findElement(locator).getText();
+		} else {
+			ReportLog("getText Failed for " + getIdentifierText(elementInfo), LogType.HARDFAIL);
+			return "NULL";
+		}
+
+	}
+
+	/**
+	 * This method reads property values of an element
+	 * 
+	 * @param xpath
+	 *            of web object, property for which value to be read
+	 * @return property value if exist otherwise null
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static String getElementPropertyUsingXpath(String elementInfo, String property) {
+		By locator = By.xpath(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			return dr.findElement(locator).getAttribute(property);
+		} else {
+			ReportLog("Unable to read " + property + " property of " + getIdentifierText(elementInfo) + "element",
+					LogType.HARDFAIL);
+			return "NULL";
+		}
+
+	}
+
+	/**
+	 * This method reads property values of an element
+	 * 
+	 * @param xpath
+	 *            of web object, property for which value to be read
+	 * @return property value if exist otherwise null
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static String getElementPropertyUsingId(String elementInfo, String property) {
+		By locator = By.id(getIdentifier(elementInfo));
+
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			return dr.findElement(locator).getAttribute(property);
+		} else {
+			ReportLog("Unable to read " + property + " property of " + getIdentifierText(elementInfo) + "element",
+					LogType.HARDFAIL);
+			return "NULL";
+		}
+
+	}
+
+	/**
+	 * This method verifies wehther the attribute of an element present or not
+	 * 
+	 * @param xpath
+	 *            of web object, property for which value to be read
+	 * @return property value if exist otherwise null
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+	public boolean isAttributePresentById(String elementInfo, String property) {
+		Boolean result = false;
+		By locator = By.id(getIdentifier(elementInfo));
+		try {
+			String value = dr.findElement(locator).getAttribute(property);
+			if (value != null) {
+				result = true;
+			}
+
+		} catch (Exception e) {
+		}
+
+		return result;
+	}
+
+	/**
+	 * This method verifies wehther the attribute of an element present or not
+	 * 
+	 * @param xpath
+	 *            of web object, property for which value to be read
+	 * @return property value if exist otherwise null
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+	public boolean isAttributePresentByXpath(String elementInfo, String property) {
+		Boolean result = false;
+		By locator = By.xpath(getIdentifier(elementInfo));
+		try {
+			String value = dr.findElement(locator).getAttribute(property);
+			if (value != null) {
+				result = true;
+			}
+
+		} catch (Exception e) {
+		}
+
+		return result;
+	}
+
+	/**
+	 * getter for build number
+	 * 
+	 * @param
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+
+	public static String getBuildNumber() {
+		return buildNumber;
+
+	}
+
+	/**
+	 * getter for tester name/id
+	 * 
+	 * @param
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+
+	public static String getTester() {
+		return tester;
+	}
+
+	/**
+	 * This method returns the text from text box
+	 * 
+	 * @param xpath
+	 *            of web object, property for which value to be read
+	 * @return property value if exist otherwise null
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static String getTextBoxTextUsingId(String elementInfo) {
+		return getElementPropertyUsingId(elementInfo, "value");
+
+	}
+
+	/**
+	 * This method gets row count in table
+	 * 
+	 * @param xpath
+	 *            of the table
+	 * @return row count in the table
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static int getTableRowCountUsingXpath(String elementInfo) {
+
+		By locator = By.xpath(getIdentifier(elementInfo) + "//tr");
+		int rowCount = 0;
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			List<WebElement> trs = dr.findElements(locator);
+			rowCount = trs.size();
+		} else {
+			ReportLog("Unable to get the row count of " + getIdentifierText(elementInfo) + "element", LogType.HARDFAIL);
+		}
+
+		return rowCount;
+	}
+
+	/**
+	 * This method gets columns count in table(first row)
+	 * 
+	 * @param xpath
+	 *            of the table
+	 * @return row count in the table
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static int getTableColCountUsingXpath(String elementInfo) {
+
+		By locator = By.xpath(getIdentifier(elementInfo) + "//tr[1]/td");
+		int colCount = 0;
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			List<WebElement> tds = dr.findElements(locator);
+			colCount = tds.size();
+		} else {
+			ReportLog("Unable to get the col count of " + getIdentifierText(elementInfo) + "element", LogType.HARDFAIL);
+		}
+
+		return colCount;
+	}
+
+	/**
+	 * This method returns the tag info
+	 * 
+	 * @param xpath
+	 *            of the td or div which contains UL tags
+	 * @return row count in the table
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static int getTheadCount(String elementInfo) {
+
+		By locator = By.xpath(getIdentifier(elementInfo) + "/th");
+		int colCount = 0;
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			List<WebElement> ths = dr.findElements(locator);
+			colCount = ths.size();
+		} else {
+			ReportLog("Unable to get the th tag count of " + getIdentifierText(elementInfo) + "element", LogType.HARDFAIL);
+		}
+
+		return colCount;
+	}
+
+	/**
+	 * This method returns the tag info
+	 * 
+	 * @param xpath
+	 *            of the td or div which contains UL tags
+	 * @return row count in the table
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static int getUlTagCount(String elementInfo) {
+
+		By locator = By.xpath(getIdentifier(elementInfo) + "/ul");
+		int colCount = 0;
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			List<WebElement> trs = dr.findElements(locator);
+			colCount = trs.size();
+		} else {
+			ReportLog("Unable to get the Ul tag count of " + getIdentifierText(elementInfo) + "element", LogType.HARDFAIL);
+		}
+
+		return colCount;
+	}
+
+	/**
+	 * Returns the property value from object repository
+	 * 
+	 * @param objectKey:
+	 *            <prpertiesfilename>.Property
+	 * @return Property value
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static String getLocator(String locKey) {
+		if (or.containsKey(locKey)) {
+			return or.getProperty(locKey);
+		} else {
+			ReportLog("'" + locKey + "' NOT exist in the OR", LogType.SOFTFAIL);
+			return "";
+		}
+
+	}
+
+	/**
+	 * Returns the config value from config properties file
+	 * 
+	 * @param key
+	 *            config propery
+	 * @return config property value
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+	public static String getConfigVal(String key) {
+		if (config.containsKey(key)) {
+			return config.getProperty(key);
+		} else {
+			ReportLog("'" + key + "' NOT exist in the config.properties", LogType.SOFTFAIL);
+			return "";
+		}
+	}
+
+	/**
+	 * This method returns the tag info
+	 * 
+	 * @param xpath
+	 *            of the td or div which contains UL tags
+	 * @return row count in the table
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static int getDivTagCount(String elementInfo) {
+
+		By locator = By.xpath(getIdentifier(elementInfo) + "/div");
+		int colCount = 0;
+		if (isElementPresent(locator, getIdentifier(elementInfo))) {
+			List<WebElement> trs = dr.findElements(locator);
+			colCount = trs.size();
+		} else {
+			ReportLog("Unable to get the div tag count of " + getIdentifierText(elementInfo) + "element", LogType.HARDFAIL);
+		}
+
+		return colCount;
+	}
+
+	/**
+	 * This method is to get the identifier from Object repository property
+	 * file. (value before the #)
+	 * 
+	 * @param value
+	 * @return
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static String getIdentifier(String value) {
+		String[] tempSplit = value.toString().split("#");
+		return tempSplit[0].trim();
+	}
+
+	/**
+	 * This method is to get the identifier info from Object repository property
+	 * file. (value after the #)
+	 * 
+	 * @param value
+	 * @return
+	 * @throws Exception
+	 * @author Jagadeesh
+	 */
+
+	public static String getIdentifierText(String value) {
+		String[] tempSplit = value.toString().split("#");
+		if (tempSplit.length > 1) {
+			return tempSplit[1].trim();
+		} else {
+			return tempSplit[0].trim();
+		}
+
+	}
+
+	/**
+	 * This method logs the message or image to the PDF report
+	 * 
+	 * @param message
+	 *            to be printed on report
+	 * @param type
+	 *            LogType eg: PASSED, SOFTFAIL, HARDFAIL
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void ReportLog(String message, LogType type) {
+		// get the name of the method
+
+		String methodName = Thread.currentThread().getStackTrace()[2].getMethodName();
+		switch (type) {
+		case INFO:
+			Reporter.log(message + " [I]");
+			log.info("[" + methodName + "] - [INFO] - " + message);
+			break;
+		case PASS:
+			Reporter.log(message + " [P]");
+			log.info("[" + methodName + "] - [PASS] - " + message);
+			break;
+		case SOFTFAIL:
+			Reporter.log(message + " [F]");
+			log.info("[" + methodName + "] - [SOFTFAIL] - " + message);
+			takeSaveScreenShot();
+			break;
+		case WARNING:
+			Reporter.log(message + " [W]");
+			log.info("[" + methodName + "] - [WARNING] - " + message);
+			break;
+		case SCREENSHOT:
+			Reporter.log(message + " [J]");
+			log.info("[" + methodName + "] - [JPG] - " + "Screenshot taken, file name is " + message + ".jpg");
+			break;
+		case UNCOMPLETED:
+			Reporter.log(message + " [U]");
+			log.info("[" + methodName + "] - [UNCOMPLETED] - " + message);
+			Assert.fail(message);
+
+			break;
+		case TEXTLOGONLY:
+			log.info("[" + methodName + "] - [LOG] - " + message);
+			break;
+		case HARDFAIL:
+			Reporter.log(message + " [S]");
+			log.info("[" + methodName + "] - [HARDFAIL] - " + message);
+			takeSaveScreenShot();
+			Assert.fail(message);
+
+			break;
+		}
+
+	}
+
+	/**
+	 * Method to take screenshot and save in location REPOER
+	 * 
+	 * @param message
+	 *            to be printed on report, LogType
+	 * @return type of log could be any one of LogType
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void takeSaveScreenShot() {
+		String fileName = RandomStringUtils.randomAlphanumeric(4);
+		// convert to augumenter, as this is TakeScreenshot is also augumentor
+		WebDriver augmentedDriver = new Augmenter().augment(dr);
+
+		try {
+			// without augumentor, not using remote web driver
+			// File scrFile =
+			// ((TakesScreenshot)dr).getScreenshotAs(OutputType.FILE);
+
+			File scrFile = ((TakesScreenshot) augmentedDriver).getScreenshotAs(OutputType.FILE);
+
+			FileUtils.copyFile(scrFile, new File(config.getProperty("IMAGES_SCREENSHOTS") + fileName.trim() + ".jpg"));
+
+			ReportLog(fileName, LogType.SCREENSHOT);
+
+		} catch (Exception e) {
+
+			ReportLog("TakeScreenShot failed." + e.getMessage(), LogType.TEXTLOGONLY);
+		}
+
+	}
+
+	/**
+	 * Method to compare String type values
+	 * 
+	 * @param message
+	 *            to be printed on report, LogType
+	 * @return type of log could be any one of LogType
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void match(String expected, String actual, String field) {
+		actual = actual.trim();
+		expected = expected.trim();
+		field = "'" + field + "'";
+
+		// try to match without ignoring case
+		if (!actual.equals(expected)) {
+			if (actual.equalsIgnoreCase(expected)) {
+				ReportLog(field + " values matched", LogType.PASS);
+				ReportLog(field + " values matched by ignoring case", LogType.WARNING);
+			} else {
+				ReportLog(field + " values NOT matched", LogType.SOFTFAIL);
+			}
+		} else {
+			ReportLog(field + " values matched.", LogType.PASS);
+		}
+
+		// display expected n actual
+		// display in 2 lines if character are more
+		if (expected.length() + actual.length() > 52) {
+			ReportLog("Expected: " + expected, LogType.INFO);
+			ReportLog("Actual: " + actual, LogType.INFO);
+		} else {
+			ReportLog("Expected: " + expected + " Actual: " + actual, LogType.INFO);
+		}
+
+	}
+
+	/**
+	 * Method to compare String type values
+	 * 
+	 * @param message
+	 *            to be printed on report, LogType
+	 * @return type of log could be any one of LogType
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void match(double expected, double actual, String field) {
+		if (actual == expected) {
+			ReportLog(field + " values matched", LogType.PASS);
+
+		} else {
+			ReportLog(field + " values NOT matched", LogType.SOFTFAIL);
+		}
+		ReportLog("Expected: " + expected + " Actual: " + actual, LogType.INFO);
+	}
+
+	/**
+	 * Method to compare integer type values
+	 * 
+	 * @param message
+	 *            to be printed on report, LogType
+	 * @return type of log could be any one of LogType
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void match(int expected, int actual, String field) {
+		if (actual == expected) {
+			ReportLog(field + " values matched", LogType.PASS);
+		} else {
+			ReportLog(field + " values NOT matched", LogType.SOFTFAIL);
+		}
+		ReportLog("Expected: " + expected + " Actual: " + actual, LogType.INFO);
+	}
+
+	/**
+	 * Method to compare String type values
+	 * 
+	 * @param message
+	 *            to be printed on report, LogType
+	 * @return type of log could be any one of LogType
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void match(Date expected, Date actual, String field) {
+		if (actual.equals(expected)) {
+			ReportLog(field + " values matched", LogType.PASS);
+		} else {
+			ReportLog(field + " values NOT matched", LogType.SOFTFAIL);
+		}
+
+		ReportLog("Expected: " + TestUtils.getFormattedDate(expected, "MM/dd/yyyy") + " Actual: "
+				+ TestUtils.getFormattedDate(actual, "MM/dd/yyyy"), LogType.INFO);
+	}
+
+	/**
+	 * Method to hover element
+	 * 
+	 * @param locator
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void hover(By locator) {
+		WebElement we = dr.findElement(locator);
+		Actions builder = new Actions(dr);
+		Actions hoverOver = builder.moveToElement(we);
+		hoverOver.perform();
+	}
+
+	/**
+	 * Method to hover element
+	 * 
+	 * @param locator
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void scrollDownlElement(By locator) {
+
+		WebElement we = dr.findElement(locator);
+		((JavascriptExecutor) dr).executeScript("arguments[0].scroll(0,250);", we);
+
+	}
+
+	/**
+	 * Method to hover element
+	 * 
+	 * @param locator
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void scrollUpElement(By locator) {
+
+		WebElement we = dr.findElement(locator);
+		((JavascriptExecutor) dr).executeScript("arguments[0].scroll(0,-250);", we);
+
+	}
+
+	/**
+	 * Method to hover element
+	 * 
+	 * @param locator
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void scrollUpElementUsingXpath(String elementInfo) {
+
+		By locator = By.xpath(getIdentifier(elementInfo));
+
+		WebElement we = dr.findElement(locator);
+		((JavascriptExecutor) dr).executeScript("arguments[0].scroll(0,-250);", we);
+	}
+
+	/**
+	 * Method to click element using actions
+	 * 
+	 * @param locator
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void clickByCSSElement(String locator) {
+
+		Actions a = new Actions(dr);
+		WebElement we = dr.findElement(By.cssSelector(locator));
+		a.click(we).build().perform();
+
+	}
+
+	/**
+	 * Method to Maximize window
+	 * 
+	 * @param
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void maximizeWindow() {
+
+		dr.manage().window().maximize();
+		wait(3);
+
+	}
+
+	/**
+	 * Method to open a new tab
+	 * 
+	 * @param
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void openNewTab() {
+
+		dr.findElement(By.cssSelector("body")).sendKeys(Keys.CONTROL + "t");
+		// ArrayList<String> tabs = new ArrayList<String>
+		// (dr.getWindowHandles());
+		// dr.switchTo().window(tabs.get(0));
+
+	}
+
+	/**
+	 * Method to close tab
+	 * 
+	 * @param
+	 * @return
+	 * @throws @author
+	 *             Jagadeesh
+	 */
+	public static void closeTab() {
+
+		dr.findElement(By.cssSelector("body")).sendKeys(Keys.CONTROL + "w");
+		ArrayList<String> tabs = new ArrayList<String>(dr.getWindowHandles());
+		dr.switchTo().window(tabs.get(0));
+
+	}
+	
+	
+	
+	
+	/**   ALL UTIL METHODS  **/
+	
+	
+	
+	/**
+	 * Checks if is null.
+	 *
+	 * @param str the str
+	 * @return true, if is null
+	 */
+	public static  boolean isNull(String str) {
+		if (null == str) {
+			return true;
+		}
+		if ("".equalsIgnoreCase(str.trim())) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Checks if is int.
+	 *
+	 * @param str the str
+	 * @return true, if is int
+	 */
+	public static  boolean isInt(String str) {
+		if (isNull(str))
+			return false;
+		else
+			try {
+				Integer.parseInt(str.trim());
+				return true;
+			} catch (NumberFormatException e) {
+				return false;
+			}
+	}
+	/**
+	 * Checks if is Long.
+	 *
+	 * @param str the str
+	 * @return true, if is Long
+	 */
+	public static  boolean isLong(String str) {
+		if (isNull(str))
+			return false;
+		else
+			try {
+				Long.parseLong(str.trim());
+				return true;
+			} catch (NumberFormatException e) {
+				return false;
+			}
+	}
+	
+	/**
+	 * Converts the Date to any format.
+	 *
+	 * @param str the str
+	 * @return Date in string
+	 */
+	public static String getFormattedDate(Date date, String format) {
+		String formatedDate = "";
+		try{
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(date);
+			SimpleDateFormat sdf = new SimpleDateFormat(format);
+			formatedDate = sdf.format(cal.getTime());
+		}
+		
+		catch(Exception e){
+			return formatedDate;
+		}
+		return formatedDate;
+	}
+	
+	/**
+	 * Retuns a random date from date to within next date
+	 *
+	 * @param frmDate from which date random date to be generated
+	 * 		 maxDays within how many days random date to be calculated
+	 * @return Date in string
+	 */
+	public static Date getRandomDateFuture(Date frmDate, int maxDays) {
+		
+		int ranNum=0;
+		Date ranDate = null;
+		try {
+			Calendar  cal = Calendar.getInstance();
+			cal.setTime(frmDate);
+			ranNum = (int)(Math.random() * maxDays);
+			//System.out.println("R num" + ranNum);
+			cal.add(Calendar.DATE, ranNum);
+			ranDate = cal.getTime();
+		} 
+		
+		catch (Exception e) {
+			return ranDate;
+		}
+		
+		return ranDate;
+	}
+	
+	/**
+	 * Retuns a random date from date to within past maxDays
+	 *
+	 * @param frmDate from which date random date to be generated
+	 * 		 maxDays within how many days random date to be calculated
+	 * @return Date in string
+	 */
+	public static Date getRandomDatePast(Date frmDate, int maxDays) {
+		
+		int ranNum=0;
+		Date ranDate = null;
+		try {
+			Calendar  cal = Calendar.getInstance();
+			cal.setTime(frmDate);
+			ranNum = (int)(Math.random() * maxDays);
+			
+			//negate the integer as we want past random date
+			ranNum *= -1;
+			
+			cal.add(Calendar.DATE, ranNum);
+			ranDate = cal.getTime();
+		} 
+		
+		catch (Exception e) {
+			return ranDate;
+		}
+		
+		return ranDate;
+	}
+	
+	/**
+	 * adds the numOfDays to Date
+	 *
+	 * @param frmDate base date
+	 * 		 numOfDays (-/+) number of days to be added to frmDate
+	 * @return Date 
+	 */
+	public static Date addDays(Date frmDate, int numOfDays) {
+		
+		Date newDate = null;
+		try {
+			Calendar  cal = Calendar.getInstance();
+			cal.setTime(frmDate);
+			cal.add(Calendar.DATE, numOfDays);
+			
+			newDate = cal.getTime();
+		} 
+		
+		catch (Exception e) {
+			return newDate;
+		}
+		
+		return newDate;
+	}
+	
+	/**
+	 * Generates random string
+	 *
+	 * @param int length
+	 * @return string
+	 
+	 */
+
+    public static String generateRandomString(int stringLength) {
+      char[] values = {'a','b','c','d','e','f','g','h','i','j',
+    		  			'k','l','m','n','o','p','q','r','s','t',
+    		  			'u','v','w','x','y','z','0','1','2','3', '4','5','6','7','8','9'};
+
+      String out = "";
+
+      for (int i=0;i<stringLength;i++) {
+        out += values[(int)(Math.random() * stringLength)];
+      }
+
+      return out;
+    }
+	
+	/**
+	 * Gets the calendar.
+	 *
+	 * @param date the date
+	 * @return the calendar
+	 */
+	public static Calendar getCalendar(Date date) {
+		if (date == null) {
+			date = Calendar.getInstance(Locale.US).getTime();
+		}
+		Calendar cal = Calendar.getInstance(Locale.US);
+		cal.setTime(date);
+		return cal;
+	}
+	
+	/**
+	 * Gets the time zone date into date. Converts input date (date format) to
+	 * given time zone and returns date (Date format)
+	 * 
+	 * @param date
+	 *            the date
+	 * @param iTimeZone
+	 *            the input time zone
+	 * @param oTimeZone
+	 *            the output time zone
+	 * @return the time zone date into date
+	 */
+	public static Date getTimeZoneDateIntoDate(Date date, String iTimeZone,
+			String oTimeZone) {
+		try {
+			
+			TimeZone iTZ = TimeZone.getTimeZone(iTimeZone);
+			int iOff = iTZ.getRawOffset();
+			TimeZone oTZ = TimeZone.getTimeZone(oTimeZone);
+			int oOff = oTZ.getRawOffset();
+			Date converted = new Date();
+			converted.setTime(date.getTime() - iOff + oOff);
+			
+			//handling Day light savings
+			long dst = 1*60*60*1000;
+			if (oTZ.inDaylightTime(converted)){
+				converted.setTime(converted.getTime()+oOff+dst);
+			}else {
+				converted.setTime(converted.getTime()+oOff);
+			}
+			return converted;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return date;
+	}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/**
+	 * Generates random number
+	 *
+	 * @param int length
+	 * @return string
+	 
+	 *//*
+	public static String generateRandomNumber(int length){
+		char[] values = {'1','2','3', '4','5','6','7','8','9'};
+
+String out = "";
+
+for (int i=0;i<length;i++) {
+out += values[(int)(Math.random() * length)];
+}
+
+return out;
+	}
+	
+	
+	
+	*//**
+	 * Generates random alphanumeric
+	 *
+	 * @param int length
+	 * @return string
+	 
+	 *//*
+	public String generateRandomNumber1(int length){
+		  return RandomStringUtils.randomNumeric(length);
+		 }
+	 
+	 
+	*//**
+	 * Generates random alphanumeric
+	 *
+	 * @param int length
+	 * @return string
+	 
+	 *//*
+	
+	public static String generateRandomAlphaNumeric(int length){
+		char[] values = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',
+						 'p','q','r','s','t','u','v','w','x','y','z',
+						 '0','1','2','3', '4','5','6','7','8','9',
+						 '-','_','?','/','<','>','%','$','#','!',';',':','?','&','^','@'};
+
+String out = "";
+
+for (int i=0;i<length;i++) {
+out += values[(int)(Math.random() * length)];
+}
+
+return out;
+	}
+	
+	*//**
+	 * Generates random alphanumeric with special characters
+	 *
+	 * @param int length
+	 * @return string
+	 
+	 *//*
+	
+	public static String generateStringWithAllowedSplChars(int length,String allowdSplChrs){
+		String allowedChars="abcdefghijklmnopqrstuvwxyz" +   //alphabets
+				"1234567890" +   //numbers
+				allowdSplChrs;
+		return RandomStringUtils.random(length, allowedChars);
+	}
+	
+	
+	*//**
+	 * Generates random email id with bosch.com
+	 *
+	 * @param int length
+	 * @return string
+	 
+	 *//*
+	
+	public static String generateEmail(int length) {
+		char[] values = {'a','b','c','d','e','f','g','h','i','j',
+	  			'k','l','m','n','o','p','q','r','s','t',
+	  			'u','v','w','x','y','z','0','1','2','3', '4','5','6','7','8','9','_'};
+
+String out = "";
+
+for (int i=0;i<length;i++) {
+out += values[(int)(Math.random() * length)];
+}
+
+		String email = out+"@bosch.com";
+		return email;
+	}
+	
+	
+	*//**
+	 * Generates random URL
+	 *
+	 * @param int length
+	 * @return string
+	 
+	 *//*
+	
+	public static String generateUrl(int length) {
+		String allowedChars="abcdefghijklmnopqrstuvwxyz" +   //alphabets
+				"1234567890" +   //numbers
+				"_-.";   //special characters
+		String url="";
+		String temp=RandomStringUtils.random(length,allowedChars);
+		url=temp.substring(0,3)+"."+temp.substring(4,temp.length()-4)+"."+temp.substring(temp.length()-3);
+		return url;
+	}
+	
+	*/
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	// Generates Random String
+	 
+	public String generateRandomString1(int length){
+		  return RandomStringUtils.randomAlphabetic(length);
+		 }
+		 
+	
+	// Generates Random Number
+		 public String generateRandomNumber(int length){
+		  return RandomStringUtils.randomNumeric(length);
+		 }
+		 
+	// Generates Random Alphanumeric
+		 public String generateRandomAlphaNumeric(int length){
+		  return RandomStringUtils.randomAlphanumeric(length);
+		 }
+		 
+	// Generates Random String with allowed Alphabets
+		 public String generateStringWithAllowedSplChars(int length,String allowdSplChrs){
+		  String allowedChars="abcdefghijklmnopqrstuvwxyz" +   //alphabets
+		    "1234567890" +   //numbers
+		    allowdSplChrs;
+		  return RandomStringUtils.random(length, allowedChars);
+		 }
+		 
+	// Generates Random bosch email id with
+		 public String generateEmail(int length) {
+		  String allowedChars="abcdefghijklmnopqrstuvwxyz" +   //alphabets
+		    "1234567890" +   //numbers
+		    "_-.";   //special characters
+		  String email="";
+		  String temp=RandomStringUtils.random(length,allowedChars);
+		  email=temp.substring(0,temp.length()-9)+"@bosch.com";
+		  return email;
+		 }
+		 
+	// Generates Random URL 
+		 public String generateUrl(int length) {
+		  String allowedChars="abcdefghijklmnopqrstuvwxyz" +   //alphabets
+		    "1234567890" +   //numbers
+		    "_-.";   //special characters
+		  String url="";
+		  String temp=RandomStringUtils.random(length,allowedChars);
+		  url=temp.substring(0,3)+"."+temp.substring(4,temp.length()-4)+"."+temp.substring(temp.length()-3);
+		  return url;
+		 }
+		 
+	//Keyboard operation 
+		 public static void TypeTextandEnterUsingId(String elementInfo, String text) {
+			 Actions action=new Actions(dr);
+				By locator = By.id(getIdentifier(elementInfo));
+				WebElement element=dr.findElement(locator);
+				if (isElementPresent(locator, getIdentifier(elementInfo))) {
+				action.moveToElement(element).sendKeys(element,text).sendKeys(Keys.ENTER).build().perform();
+				ReportLog("Type text '" + text + "' into " + getIdentifierText(elementInfo), LogType.PASS);
+				}
+		 }
+				
+				 public static void TypeTextandEnterUsingXpath(String elementInfo, String text) {
+					 Actions action=new Actions(dr);
+						By locator = By.xpath(getIdentifier(elementInfo));
+						WebElement element=dr.findElement(locator);
+						if (isElementPresent(locator, getIdentifier(elementInfo))) {
+						action.moveToElement(element).sendKeys(element,text).sendKeys(Keys.ENTER).build().perform();
+						ReportLog("Type text '" + text + "' into " + getIdentifierText(elementInfo), LogType.PASS);
+						}
+			}
+				 
+				 public static void TypeTextandEnterUsingName(String elementInfo, String text) {
+					 Actions action=new Actions(dr);
+						By locator = By.name(getIdentifier(elementInfo));
+						WebElement element=dr.findElement(locator);
+						if (isElementPresent(locator, getIdentifier(elementInfo))) {
+						action.moveToElement(element).sendKeys(element,text).sendKeys(Keys.ENTER).build().perform();
+						ReportLog("Type text '" + text + "' into " + getIdentifierText(elementInfo), LogType.PASS);
+						}
+			}
+       
+				 //Click on Element
+				 
+				 public static void clickElement(String elementInfo) {
+
+						By locator = By.xpath(getIdentifier(elementInfo));
+
+						dr.findElement(locator).click();
+							ReportLog("Click on '" + getIdentifierText(elementInfo) + "' button/link", LogType.PASS);
+							
+							
+											}
+				 
+				 //Verify Sorting 
+				 
+               public static void VerifySortingUsingXpath(String elementInfo){
+            	  
+            	   By locator = By.xpath(getIdentifier(elementInfo));
+					ArrayList<String> obtainedList = new ArrayList<>(); 
+					List<WebElement> elementList= dr.findElements(locator);
+					for(WebElement we:elementList){
+					   obtainedList.add(we.getText().toLowerCase());
+					   
+					}
+					System.out.println(obtainedList);
+					
+					ArrayList<String> sortedList = new ArrayList<>();   
+					for(String s:obtainedList){
+					sortedList.add(s);
+
+					}
+					Collections.sort(sortedList);
+					System.out.println(sortedList);
+					try{
+						Assert.assertEquals(obtainedList, sortedList);
+						//System.out.println("Sorting has been done Successfully");
+						ReportLog("Sorting done Successfully for " + getIdentifierText(elementInfo), LogType.PASS);
+					}
+					catch(Exception e){
+						//System.out.println("Sorting is failed."+e.getMessage());
+						ReportLog("Sorting failed for " + getIdentifierText(elementInfo), LogType.HARDFAIL);
+					}
+						
+					}
+               
+               
+               // Method for double click 
+               
+               
+				 public static void doubleClickonElementUsingXpath(String elementInfo) {
+					  
+					   Actions action=new Actions(dr);
+						By locator = By.xpath(getIdentifier(elementInfo));
+						WebElement element=dr.findElement(locator);
+						if (isElementPresent(locator, getIdentifier(elementInfo))) {				
+					
+						action.moveToElement(element).doubleClick().build().perform();
+
+						ReportLog("Double Click on '" + getIdentifierText(elementInfo) + "' button/link", LogType.PASS);													}
+               
+				 }
+				 
+		// clear fields using Keyboard 
+				 
+				 public static void cleartextusingkeyboard_Xpath(String elementInfo){
+					 
+					 
+					 Actions action=new Actions(dr);
+						By locator = By.xpath(getIdentifier(elementInfo));
+						WebElement element=dr.findElement(locator);
+						if (isElementPresent(locator, getIdentifier(elementInfo))) {
+						action.moveToElement(element).sendKeys(Keys.CONTROL + "a").sendKeys(Keys.DELETE).build().perform();
+						ReportLog("Type text '"  + getIdentifierText(elementInfo), LogType.PASS);
+						}
+				 }
+				 
+                    public static void cleartextusingkeyboard_Id(String elementInfo){
+					 
+					 
+					 Actions action=new Actions(dr);
+						By locator = By.id(getIdentifier(elementInfo));
+						WebElement element=dr.findElement(locator);
+						if (isElementPresent(locator, getIdentifier(elementInfo))) {
+						action.moveToElement(element).sendKeys(Keys.CONTROL + "a").sendKeys(Keys.DELETE).build().perform();
+						ReportLog("Type text '"  + getIdentifierText(elementInfo), LogType.PASS);
+						}
+				 }
+                    
+                  
+                    
+				 
+				
+				}
+				 
+					
+
+
+
